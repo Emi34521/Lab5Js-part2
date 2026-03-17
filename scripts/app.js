@@ -1,6 +1,5 @@
 // app.js
-// Commit 2: lógica completa — fetch de posts, búsqueda y UI states dinámicos.
-// El POST (crear post) se añade en el Commit 3.
+// Commit 3: se añade el POST para crear posts. App completa.
 
 // ---------------------------------------------------------------------------
 // BASE URL de la API
@@ -236,17 +235,75 @@ function resetFormStates() {
   document.getElementById('post-tags').value  = '';
 }
 
-// Placeholder del submit — se conecta a la API en el Commit 3
+// ---------------------------------------------------------------------------
+// CREAR POST — POST /posts/add
+// Lee los campos del formulario, valida que no estén vacíos,
+// y envía el JSON al endpoint. Actualiza los estados según el resultado.
+// ---------------------------------------------------------------------------
+
+// Guarda los datos del último intento para poder reintentarlo si hay error
+let lastPostPayload = null;
+
+function createPost(payload) {
+  setFormState('loading');
+
+  fetch(`${API_BASE}/posts/add`, {
+    method: 'POST',
+    headers: {
+      // Le indicamos a la API que el body viene en formato JSON
+      'Content-Type': 'application/json'
+    },
+    // Convertimos el objeto JS a string JSON para enviarlo en el body
+    body: JSON.stringify(payload)
+  })
+    .then(response => {
+      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+      return response.json();
+    })
+    .then(data => {
+      // DummyJSON devuelve el post creado con un id asignado
+      console.log('Post creado:', data);
+      setFormState('success');
+    })
+    .catch(error => {
+      console.error('createPost falló:', error);
+      setFormState('error');
+    });
+}
+
+// Botón "Publicar" — valida los campos y llama a createPost
 const btnSubmit = document.getElementById('btn-submit');
 btnSubmit.addEventListener('click', () => {
-  // TODO Commit 3: llamar a POST /posts/add con los datos del formulario
-  alert('El envio del formulario se implementa en el Commit 3.');
+  const title = document.getElementById('post-title').value.trim();
+  const body  = document.getElementById('post-body').value.trim();
+  const tags  = document.getElementById('post-tags').value
+                  .split(',')                    // separa por coma
+                  .map(t => t.trim())            // limpia espacios de cada tag
+                  .filter(t => t.length > 0);   // descarta tags vacíos
+
+  // Validacion minima: titulo y contenido son obligatorios
+  if (!title || !body) {
+    alert('El titulo y el contenido son obligatorios.');
+    return;
+  }
+
+  // Se construye el objeto que se enviara en el body del POST
+  // userId: 1 es requerido por DummyJSON para aceptar el post
+  lastPostPayload = { title, body, tags, userId: 1 };
+
+  createPost(lastPostPayload);
 });
 
-// Retry del formulario — vuelve al estado idle para reintentar
+// Retry del formulario — reintenta el POST con los mismos datos
 const btnFormRetry = document.getElementById('btn-form-retry');
 btnFormRetry.addEventListener('click', () => {
-  setFormState('idle');
+  if (lastPostPayload) {
+    // Si hay un intento previo guardado, lo reenvía directamente
+    createPost(lastPostPayload);
+  } else {
+    // Si no hay datos previos, vuelve al formulario para que el usuario los ingrese
+    setFormState('idle');
+  }
 });
 
 // ---------------------------------------------------------------------------
